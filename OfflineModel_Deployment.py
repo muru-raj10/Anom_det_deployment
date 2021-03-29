@@ -1,4 +1,4 @@
-#cleaning data
+
 
 import pandas as pd
 import numpy as np
@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 import time
 import random
 
-folder = '/home/nuc/Desktop/PythonProgs/FlowRecorder/DuncanData/Full_Data/'
+folder = ''
 
 norm_data = pd.read_csv(folder+'normal_data.csv')  #for training. Not needed for deployment
 test_data = pd.read_csv(folder+'anomaly_data_latency.csv')  #for testing. Not needed for deployment
@@ -39,14 +39,12 @@ norm_data2 = CreateChangeFeature(norm_data2,['battsV', 'battsSensedV','arrayV', 
 test_data = CreateChangeFeature(test_data,['battsV', 'battsSensedV','arrayV', 'arrayI','hsTemp', 'rtsTemp', 'outPower', 'inPower'])
 test_data2 = CreateChangeFeature(test_data2,['battsV', 'battsSensedV','arrayV', 'arrayI','hsTemp', 'rtsTemp', 'outPower', 'inPower'])
 
-#normal operations data taken. those that have a few discrepancies are removed for training.
-df = pd.concat([norm_data2[:1300],norm_data2[1600:3200],norm_data2[3500:3800],norm_data2[4400:5100],norm_data2[5600:5900],norm_data2[7100:8400],norm_data2[10200:10800],norm_data2[11800:12500]]).reset_index(drop=True)
-df2 = pd.concat([test_data2,norm_data2[6050:6350]]).reset_index(drop=True)
+df = norm_data2
+df2 = test_data2
 
 norm_data_full = norm_data.append(df,ignore_index=True).reset_index(drop=True)
 #test_data_full = test_data.append(test_data2,ignore_index=True).reset_index(drop=True)
 test_data_full = test_data.append(df2,ignore_index=True).reset_index(drop=True)
-
 
 norm_data_full = norm_data_full.drop(norm_data_full[norm_data_full['battsI']>120].index,axis=0).reset_index(drop=True)
 test_data_full = test_data_full.drop(test_data_full[test_data_full['battsI']>120].index,axis=0).reset_index(drop=True)
@@ -65,10 +63,7 @@ norm_data_full = ConvertToDateTime(norm_data_full)
 test_data_full = ConvertToDateTime(test_data_full)
 added_norm = test_data_full[-298:]['DateTime'] #removed 2 bad points
 
-#still checking on 'signal', 'TXLatency'
-#'TXRate', 'RXRate' have some problems in the test file. Removed for now. (check!?!)
-#List of numerical attributes in the data. Names need to match the dataset
-#try removing 'battsV', 'battsSensedV', 'latency'
+
 numerical = ['battsI', 'arrayV', 'arrayI',
        'v_target', 'hsTemp', 'rtsTemp', 'outPower', 'inPower', 'sweep_pmax',
        'sweep_vmp', 'sweep_voc', 'minVb_daily', 'maxVb_daily', 'ahc_daily',
@@ -77,12 +72,10 @@ numerical = ['battsI', 'arrayV', 'arrayI',
         'NoiseFloor', 'ch_arrayV','battsV', 'battsSensedV','ch_battsV', 'ch_battsSensedV',
        'ch_arrayI', 'ch_hsTemp', 'ch_rtsTemp', 'ch_outPower', 'ch_inPower','TXLatency','latency']
 
-#'flags_daily' is removed for now
-#list of nominal variables in the data
 nominal = ['statenum','weather_long']
 
-#list of indicator variables which have a fixed value for data #removed 'freq'
-fixed_cols = ['dipswitches','CCQ'] #fixed value. anomaly if changes
+#list of indicator variables which have a fixed value for data 
+fixed_cols = ['dipswitches','CCQ'] 
 
 #convert datatype in nominal variables to string if they are not already
 for col in nominal:
@@ -90,22 +83,13 @@ for col in nominal:
     test_data_full[col] = test_data_full[col].astype(str)
 
 
-#remove rows with latency above 10 and TXLatency above 10. Latency values above 10 are anomalies that we want to detect.
-norm_data_full = norm_data_full.drop(norm_data_full[norm_data_full['latency']>10].index).reset_index(drop=True)
-norm_data_full = norm_data_full.drop(norm_data_full[norm_data_full['TXLatency']>10].index).reset_index(drop=True)
-
-#label anomaly data
+#label anomaly data for test
 test_data_full['label'] = 0
-#test_data_full['type']='normal'
 test_data_full.loc[test_data_full[test_data_full['latency']>10].index,'label']=1
 labels_latency = test_data_full['label']
-#test_data_full.loc[test_data_full[test_data_full['latency']>10].index,'type']='latency'
-
-#test_data_full.loc[test_data_full[test_data_full['latency']>10].index,'label']=1
-#test_data_full.loc[test_data_full[test_data_full['???']>10].index,'type']='battery'
 
 #create binary feature for fixed values
-CheckUnique(norm_data_full,fixed_cols) #check for training.
+CheckUnique(norm_data_full,fixed_cols) 
 
 vals = {}
 for col in fixed_cols:
@@ -114,12 +98,6 @@ for col in fixed_cols:
 norm_data = CreateBinary(norm_data_full,fixed_cols,vals) #required in preprocessing of data during deployment
 test_data = CreateBinary(test_data_full,fixed_cols,vals)
 
-#check normal data in test dataset
-#des_norm_train = norm_data.describe()
-#des_norm_test = test_data[test_data['label']==0].describe()
-#des_diff = des_norm_train - des_norm_test #numbers should be small for all columns
-#print(des_diff)
-#######################################################################################################################3
 #split data into time periods
 def Split_by_Time(df,starth,endh):
     varble = []
@@ -166,7 +144,6 @@ def Check_Columns(train_enc_columns,test_enc):
         if col not in set(test_enc.columns):
             test_enc[col] = 0
 
-#Check_Columns(norm_data_enc.columns,test_data_enc)
 
 #list of binary variables after one hot encoding
 binary = list(norm_data_enc.columns[list(norm_data_enc.columns).index('Time')+1:])
@@ -385,7 +362,7 @@ def LoadModel(dim,first_layer,second_layer,latent_dim,scaling,fname='AE.pth'):
     nmodel.load_state_dict(torch.load(fname))
     return nmodel
 
-first_layer = 24  # manual input but fixed.
+first_layer = 24  # manual input for now but fixed.
 second_layer = 14
 dim = np.shape(Normalized_training_df)[1]
 print(dim)
@@ -427,15 +404,15 @@ def PreprocessLiveData(data,all_encoded_columns):
     datas = CreateChangeFeature(data, ['battsV', 'battsSensedV', 'arrayV', 'arrayI', 'hsTemp', 'rtsTemp', 'outPower','inPower'])
 
     datas = datas.drop(datas[datas['battsI'] > 120].index, axis=0).reset_index(drop=True) #some measurement errors. we drop this data point. a better way available?
-    datas = ConvertToDateTime(datas) #input new column for datetime
+    datas = ConvertToDateTime(datas) 
 
     for col in nominal:
-        #nominal is list of columns with nominal variables.
+        
         datas[col] = datas[col].astype(str)
 
-    datas = CreateBinary(datas, fixed_cols, vals) #fixed cols is variables with the same value and the vals is the dictionary of them
+    datas = CreateBinary(datas, fixed_cols, vals) 
 
-    datas = Split_by_Time(datas , 6, 9) #assigns a new variable if the data point is within the time frame of 6 am to 9am.
+    datas = Split_by_Time(datas , 6, 9) 
     datas  = Split_by_Time(datas , 9, 11)
     datas  = Split_by_Time(datas , 11, 13)
     datas  = Split_by_Time(datas , 13, 15)
@@ -446,16 +423,9 @@ def PreprocessLiveData(data,all_encoded_columns):
     Check_Columns(all_encoded_columns, data_enc)
 
     scaled_pca_bin_ts = PCA_compress_with_transformer(data_enc, binary, pca_transformer, pca_scaler,tot)
-    #binary is the list of binary columns, pca_transformer and pca_scaler are determined while preprocessing training data
 
     Normalized_data_df = pd.DataFrame(scaler.transform(data_enc[numerical]), columns=numerical)
-    #scaler is the scaler for numerical data determined while preprocessing training data
 
     Normalized_data_df = pd.concat([Normalized_data_df, scaled_pca_bin_ts], axis=1)
 
     return Normalized_data_df
-
-
-#eg: taking the whole test data together.
-#Normalized_data_df = PreprocessLiveData(test_data,norm_data_enc.columns)
-#scores = ScoreLiveData(Normalized_data_df,model_for_deployment)
