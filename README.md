@@ -1,6 +1,6 @@
 # Anom_det_deployment
 
-Code used for the following paper and for the base code for deployment. Deployment code is work in progress.
+Code used for the following paper and for the base code for deployment. Deployment code is not public.
 
 Odiathevar, Murugaraj, et al. "Humans Learning from Machines: Data Science Meets Network Management." 2021 International Conference on COMmunication Systems & NETworkS (COMSNETS). IEEE, 2021.
 
